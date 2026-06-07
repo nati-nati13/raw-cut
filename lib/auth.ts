@@ -5,6 +5,7 @@ import { connectDB } from './db'
 import User from '@/models/User'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
