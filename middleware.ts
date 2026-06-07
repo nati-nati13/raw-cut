@@ -1,3 +1,10 @@
-// Middleware disabled — re-enable when MongoDB + NextAuth configured.
-// See PLAN.md Phase 3 for full implementation.
-export {}
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+}
