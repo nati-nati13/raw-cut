@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/hooks/useCart'
 import { ShippingSelector } from '@/components/checkout/ShippingSelector'
@@ -109,10 +109,11 @@ export default function CheckoutPage() {
     }
   }
 
-  if (items.length === 0) {
-    router.push('/cart')
-    return null
-  }
+  useEffect(() => {
+    if (items.length === 0) router.push('/cart')
+  }, [items.length, router])
+
+  if (items.length === 0) return null
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
