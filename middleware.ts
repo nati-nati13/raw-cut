@@ -1,9 +1,3 @@
-// Middleware disabled for frontend-only development.
-// Re-enable when MongoDB + NextAuth are configured.
-// See PLAN.md for full middleware implementation.
-
-export function middleware() {}
-
-export const config = {
-  matcher: [],
-}
+// Middleware disabled — re-enable when MongoDB + NextAuth configured.
+// See PLAN.md Phase 3 for full implementation.
+export {}
