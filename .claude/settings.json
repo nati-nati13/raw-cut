@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest add card input label badge select sheet dialog dropdown-menu avatar separator toast --yes)",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\NATIA\\\\Desktop\\\\raw-cut\\\\app\\\\api\\\\categories\")",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "PowerShell(New-Item -ItemType File -Force -Path \"C:\\\\Users\\\\NATIA\\\\Desktop\\\\raw-cut\\\\app\\\\\\(auth\\)\\\\register\\\\RegisterForm.tsx\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s \"http://localhost:3001/products\")",
+      "PowerShell($proc = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess; if \\($proc\\) { Stop-Process -Id $proc -Force; \"Killed PID $proc\" } else { \"No process on 3001\" })"
+    ]
+  }
+}

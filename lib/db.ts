@@ -1,0 +1,30 @@
+import mongoose from 'mongoose'
+
+interface MongooseCache {
+  conn: typeof mongoose | null
+  promise: Promise<typeof mongoose> | null
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var mongoose: MongooseCache
+}
+
+const cached: MongooseCache = global.mongoose ?? { conn: null, promise: null }
+global.mongoose = cached
+
+export async function connectDB() {
+  const uri = process.env.MONGODB_URI
+  if (!uri || uri.includes('<user>')) {
+    throw new Error('MONGODB_URI not configured. Add it to .env.local before using DB features.')
+  }
+
+  if (cached.conn) return cached.conn
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(uri, { bufferCommands: false })
+  }
+
+  cached.conn = await cached.promise
+  return cached.conn
+}
