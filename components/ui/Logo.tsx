@@ -19,8 +19,8 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link href="/" className={`flex items-center gap-2.5 ${className ?? ''}`}>
-      <LogoMark className="h-8 w-auto" />
+    <Link href="/" className={`group flex items-center gap-2.5 ${className ?? ''}`}>
+      <LogoMark className="h-8 w-auto transition-transform duration-700 ease-in-out group-hover:rotate-[360deg]" />
       <span className="font-black text-[1.15rem] tracking-[-0.03em] uppercase leading-none select-none">
         raw&amp;cut
       </span>
