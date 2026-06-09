@@ -1,7 +1,12 @@
 import NextAuth from 'next-auth'
 import { authConfig } from './auth.config'
+import type { NextRequest } from 'next/server'
 
-export const { auth: proxy } = NextAuth(authConfig)
+const { auth } = NextAuth(authConfig)
+
+export function proxy(request: NextRequest) {
+  return auth(request as any)
+}
 
 export const config = {
   matcher: ['/dashboard/:path*'],
