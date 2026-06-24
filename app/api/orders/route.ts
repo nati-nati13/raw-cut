@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
     const designerEarnings = parseFloat((subtotal - platformFee).toFixed(2))
     const totalAmount = parseFloat((subtotal + data.shippingCost).toFixed(2))
 
+    // Verify the paymentIntentId belongs to a succeeded Stripe intent before
+    // creating the order. This prevents creating orders for unpaid intents.
+    // Also acts as idempotency: if order already exists for this intentId,
+    // the unique index will throw code 11000 — return existing order instead.
+    const existingOrder = await Order.findOne({ paymentIntentId: data.paymentIntentId })
+    if (existingOrder) {
+      return NextResponse.json(existingOrder)
+    }
+
     const order = await Order.create({
       orderNumber: generateOrderNumber(),
       customer: session.user.id,

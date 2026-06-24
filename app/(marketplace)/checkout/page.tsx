@@ -18,7 +18,11 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Guard: loadStripe throws if key is undefined — only call in browser with real key.
+const stripePromise =
+  typeof window !== 'undefined' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+    : null
 
 const COUNTRY_CODES: Record<string, string> = {
   'United States': 'US', 'Georgia': 'GE', 'Germany': 'DE',

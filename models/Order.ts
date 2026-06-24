@@ -55,7 +55,7 @@ const OrderSchema = new Schema<IOrder>(
     platformFee: { type: Number, required: true },
     designerEarnings: { type: Number, required: true },
     totalAmount: { type: Number, required: true },
-    paymentIntentId: { type: String, required: true },
+    paymentIntentId: { type: String, required: true, unique: true },
     currency: { type: String, default: 'USD' },
   },
   { timestamps: true }
