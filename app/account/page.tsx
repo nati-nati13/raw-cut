@@ -3,12 +3,14 @@
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
+import { Package } from 'lucide-react'
 
 export default function AccountPage() {
   const { data: session, status, update } = useSession()
@@ -64,6 +66,21 @@ export default function AccountPage() {
           </span>
         </div>
       </div>
+
+      <Separator />
+
+      {/* Quick links */}
+      <section className="space-y-2">
+        <h2 className="font-semibold">My account</h2>
+        <Link
+          href="/account/orders"
+          className="flex items-center gap-3 border rounded-lg p-3 hover:bg-gray-50 transition-colors text-sm"
+        >
+          <Package className="h-4 w-4 text-gray-400" />
+          <span>Order history</span>
+          <span className="ml-auto text-gray-400">→</span>
+        </Link>
+      </section>
 
       <Separator />
 

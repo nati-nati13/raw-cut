@@ -1,20 +1,71 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { ProductGrid } from '@/components/product/ProductGrid'
 import { Separator } from '@/components/ui/separator'
-import { getMockDesigner, getMockDesignerProducts } from '@/lib/mock-data'
+import { connectDB } from '@/lib/db'
+import User from '@/models/User'
+import Product from '@/models/Product'
 
-export default async function DesignerStorefrontPage({
-  params,
-}: {
+interface Props {
   params: Promise<{ username: string }>
-}) {
+}
+
+async function getDesigner(username: string) {
+  await connectDB()
+  const designer = await User.findOne({
+    username,
+    role: 'designer',
+    status: 'approved',
+  })
+    .select('name username storeName bio avatar socialLinks')
+    .lean()
+  return designer
+}
+
+async function getDesignerProducts(designerId: string) {
+  return Product.find({ designer: designerId, status: 'published' })
+    .populate('designer', 'name username storeName avatar')
+    .populate('category', 'name slug')
+    .sort({ featured: -1, createdAt: -1 })
+    .lean()
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
-  const designer = getMockDesigner(username)
+  const designer = await getDesigner(username)
+  if (!designer) return { title: 'Designer not found' }
+
+  const d = designer as any
+  const displayName = d.storeName ?? d.name
+
+  return {
+    title: `${displayName} — RAW&CUT`,
+    description: d.bio ?? `Shop ${displayName}'s collection on RAW&CUT — independent fashion marketplace.`,
+    openGraph: {
+      title: `${displayName} — RAW&CUT`,
+      description: d.bio ?? `Shop ${displayName}'s collection on RAW&CUT.`,
+      images: d.avatar ? [{ url: d.avatar, width: 400, height: 400, alt: displayName }] : undefined,
+      type: 'profile',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${displayName} — RAW&CUT`,
+      description: d.bio,
+      images: d.avatar ? [d.avatar] : undefined,
+    },
+  }
+}
+
+export default async function DesignerStorefrontPage({ params }: Props) {
+  const { username } = await params
+  const designer = await getDesigner(username)
   if (!designer) notFound()
 
-  const products = getMockDesignerProducts(designer._id)
-  const displayName = designer.storeName ?? designer.name
+  const d = designer as any
+  const products = await getDesignerProducts(d._id.toString())
+  const displayName = d.storeName ?? d.name
+  const soldCount = (products as any[]).reduce((sum, p) => sum + (p.soldCount ?? 0), 0)
 
   return (
     <div>
@@ -23,9 +74,9 @@ export default async function DesignerStorefrontPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-6">
             <div className="h-20 w-20 rounded-full bg-gray-200 overflow-hidden shrink-0">
-              {designer.avatar ? (
+              {d.avatar ? (
                 <Image
-                  src={designer.avatar}
+                  src={d.avatar}
                   alt={displayName}
                   width={80}
                   height={80}
@@ -39,14 +90,12 @@ export default async function DesignerStorefrontPage({
             </div>
             <div>
               <h1 className="text-2xl font-bold">{displayName}</h1>
-              <p className="text-gray-400 text-sm mt-0.5">@{designer.username}</p>
-              {designer.bio && (
-                <p className="text-gray-600 mt-2 max-w-lg">{designer.bio}</p>
-              )}
+              <p className="text-gray-400 text-sm mt-0.5">@{d.username}</p>
+              {d.bio && <p className="text-gray-600 mt-2 max-w-lg">{d.bio}</p>}
               <div className="flex gap-4 mt-2">
-                {designer.socialLinks?.instagram && (
+                {d.socialLinks?.instagram && (
                   <a
-                    href={`https://instagram.com/${designer.socialLinks.instagram}`}
+                    href={`https://instagram.com/${d.socialLinks.instagram}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-gray-500 hover:text-black"
@@ -54,9 +103,9 @@ export default async function DesignerStorefrontPage({
                     Instagram ↗
                   </a>
                 )}
-                {designer.socialLinks?.website && (
+                {d.socialLinks?.website && (
                   <a
-                    href={designer.socialLinks.website}
+                    href={d.socialLinks.website}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-gray-500 hover:text-black"
@@ -73,9 +122,7 @@ export default async function DesignerStorefrontPage({
               <p className="text-xs text-gray-500">Products</p>
             </div>
             <div>
-              <p className="text-lg font-semibold">
-                {products.reduce((sum, p) => sum + p.soldCount, 0)}
-              </p>
+              <p className="text-lg font-semibold">{soldCount}</p>
               <p className="text-xs text-gray-500">Sold</p>
             </div>
           </div>
@@ -88,7 +135,7 @@ export default async function DesignerStorefrontPage({
         {products.length === 0 ? (
           <p className="text-gray-400 text-center py-12">No products listed yet.</p>
         ) : (
-          <ProductGrid products={products} />
+          <ProductGrid products={products as any} />
         )}
       </div>
     </div>
