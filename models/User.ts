@@ -18,6 +18,9 @@ export interface IUser extends Document {
   // Customer
   addresses: IAddress[]
   wishlist: mongoose.Types.ObjectId[]
+  // Password reset
+  resetToken?: string
+  resetTokenExpiry?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -56,6 +59,9 @@ const UserSchema = new Schema<IUser>(
     // Customer fields
     addresses: [AddressSchema],
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
+    // Password reset (stored as sha256 hash of the raw token)
+    resetToken: { type: String, select: false },
+    resetTokenExpiry: { type: Date, select: false },
   },
   { timestamps: true }
 )

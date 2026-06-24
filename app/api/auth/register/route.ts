@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
+import { sendWelcomeEmail } from '@/lib/email'
 
 const RegisterSchema = z.object({
   name: z.string().min(2),
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
       username: data.username,
       storeName: data.storeName,
     })
+
+    // Fire-and-forget welcome email
+    sendWelcomeEmail(user.email, user.name).catch(console.error)
 
     return NextResponse.json(
       { message: 'Account created', userId: user._id, status: user.status },

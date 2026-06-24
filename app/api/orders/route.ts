@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { connectDB } from '@/lib/db'
 import Order from '@/models/Order'
 import User from '@/models/User'
+import { sendOrderConfirmation } from '@/lib/email'
 
 const CreateOrderSchema = z.object({
   items: z.array(
@@ -65,6 +66,21 @@ export async function POST(req: NextRequest) {
       totalAmount,
       status: 'pending',
     })
+
+    // Fire-and-forget order confirmation email
+    const customer = await User.findById(session.user.id).select('email name').lean()
+    if (customer) {
+      const c = customer as any
+      sendOrderConfirmation(c.email, c.name, {
+        orderNumber: order.orderNumber,
+        items: data.items.map((i) => ({ title: i.product, quantity: i.quantity, price: i.price })),
+        subtotal,
+        shippingCost: data.shippingCost,
+        totalAmount,
+        currency: data.currency ?? 'USD',
+        shippingAddress: data.shippingAddress,
+      }).catch(console.error)
+    }
 
     return NextResponse.json(order, { status: 201 })
   } catch (err) {
