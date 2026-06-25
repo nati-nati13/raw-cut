@@ -3,7 +3,7 @@ import { UserRole, DesignerStatus, IAddress } from '@/types'
 
 export interface IUser extends Document {
   email: string
-  password: string
+  password?: string
   name: string
   role: UserRole
   // Designer
@@ -37,7 +37,7 @@ const AddressSchema = new Schema<IAddress>({
 const UserSchema = new Schema<IUser>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
+    password: { type: String },
     name: { type: String, required: true, trim: true },
     role: { type: String, enum: ['customer', 'designer', 'admin'], default: 'customer' },
     // Designer fields

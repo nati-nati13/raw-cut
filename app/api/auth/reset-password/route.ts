@@ -3,8 +3,12 @@ import { createHash } from 'crypto'
 import bcrypt from 'bcryptjs'
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
+import { checkAuthRateLimit } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
+  const limited = await checkAuthRateLimit(req)
+  if (limited) return limited
+
   try {
     const { token, password } = await req.json()
     if (!token || !password) {
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired reset link' }, { status: 400 })
     }
 
-    const hashed = await bcrypt.hash(password, 12)
+    const hashed = await bcrypt.hash(password, 10)
     await User.findByIdAndUpdate(user._id, {
       password: hashed,
       resetToken: undefined,

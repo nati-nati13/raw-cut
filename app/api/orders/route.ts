@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
+import { stripe } from '@/lib/stripe'
 import { connectDB } from '@/lib/db'
 import Order from '@/models/Order'
+import Product from '@/models/Product'
 import User from '@/models/User'
 import { sendOrderConfirmation } from '@/lib/email'
 
@@ -10,23 +12,17 @@ const CreateOrderSchema = z.object({
   items: z.array(
     z.object({
       product: z.string(),
-      designer: z.string(),
       quantity: z.number().int().positive(),
-      price: z.number().positive(),
       variant: z.object({ size: z.string().optional(), color: z.string().optional() }).optional(),
-      type: z.enum(['physical', 'digital']),
     })
-  ),
+  ).min(1),
   shippingAddress: z.object({
     street: z.string(),
     city: z.string(),
     country: z.string(),
     postalCode: z.string(),
   }),
-  shippingCarrier: z.string(),
-  shippingCost: z.number().min(0),
-  paymentIntentId: z.string(),
-  currency: z.string().default('USD'),
+  paymentIntentId: z.string().startsWith('pi_'),
 })
 
 function generateOrderNumber(): string {
@@ -45,48 +41,110 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = CreateOrderSchema.parse(body)
 
-    await connectDB()
+    // ── 1. Verify PaymentIntent with Stripe ────────────────────────────────
+    // Retrieve the intent directly from Stripe — do NOT trust client amounts.
+    const intent = await stripe.paymentIntents.retrieve(data.paymentIntentId)
 
-    // Get commission rate from the first designer (simplification for MVP; multi-designer handled per item)
-    const designer = await User.findById(data.items[0].designer)
-    const commissionRate = designer?.commissionRate ?? Number(process.env.PLATFORM_COMMISSION_RATE ?? 15)
-
-    const subtotal = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2))
-    const designerEarnings = parseFloat((subtotal - platformFee).toFixed(2))
-    const totalAmount = parseFloat((subtotal + data.shippingCost).toFixed(2))
-
-    // Verify the paymentIntentId belongs to a succeeded Stripe intent before
-    // creating the order. This prevents creating orders for unpaid intents.
-    // Also acts as idempotency: if order already exists for this intentId,
-    // the unique index will throw code 11000 — return existing order instead.
-    const existingOrder = await Order.findOne({ paymentIntentId: data.paymentIntentId })
-    if (existingOrder) {
-      return NextResponse.json(existingOrder)
+    // Confirm the intent belongs to this user (stored in metadata by create-intent)
+    if (intent.metadata?.userId && intent.metadata.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const order = await Order.create({
-      orderNumber: generateOrderNumber(),
-      customer: session.user.id,
-      ...data,
-      subtotal,
-      platformFee,
-      designerEarnings,
-      totalAmount,
-      status: 'pending',
+    if (intent.status !== 'succeeded') {
+      return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
+    }
+
+    // Read server-computed amounts from intent metadata
+    const subtotal = parseFloat(intent.metadata?.serverSubtotal ?? '0')
+    const shippingCost = parseFloat(intent.metadata?.serverShippingCost ?? '0')
+    const totalAmount = parseFloat((subtotal + shippingCost).toFixed(2))
+    const shippingCarrier = intent.metadata?.carrier ?? ''
+    const currency = intent.metadata?.currency ?? 'USD'
+
+    // ── 2. Idempotency — return existing order if already created ──────────
+    await connectDB()
+    const existingOrder = await Order.findOne({ paymentIntentId: data.paymentIntentId })
+    if (existingOrder) return NextResponse.json(existingOrder)
+
+    // ── 3. Fetch canonical product data from DB ────────────────────────────
+    const productIds = data.items.map((i) => i.product)
+    const dbProducts = await Product.find({
+      _id: { $in: productIds },
+    })
+      .select('price designer type title')
+      .lean()
+
+    const productMap = new Map(dbProducts.map((p: any) => [p._id.toString(), p]))
+
+    for (const item of data.items) {
+      if (!productMap.has(item.product)) {
+        return NextResponse.json(
+          { error: `Product not found: ${item.product}` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // ── 4. Build order items from DB data (no client prices) ──────────────
+    const orderItems = data.items.map((item) => {
+      const p = productMap.get(item.product) as any
+      return {
+        product: item.product,
+        designer: p.designer,
+        quantity: item.quantity,
+        price: p.price,
+        variant: item.variant,
+        type: p.type,
+      }
     })
 
-    // Fire-and-forget order confirmation email
+    // ── 5. Commissions ─────────────────────────────────────────────────────
+    const commissionRate = Number(process.env.PLATFORM_COMMISSION_RATE ?? 15)
+    const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2))
+    const designerEarnings = parseFloat((subtotal - platformFee).toFixed(2))
+
+    // ── 6. Create order — catch duplicate key to handle concurrent requests ──
+    let order
+    try {
+      order = await Order.create({
+        orderNumber: generateOrderNumber(),
+        customer: session.user.id,
+        items: orderItems,
+        shippingAddress: data.shippingAddress,
+        shippingCarrier,
+        shippingCost,
+        paymentIntentId: data.paymentIntentId,
+        subtotal,
+        platformFee,
+        designerEarnings,
+        totalAmount,
+        currency,
+        status: 'paid',
+      })
+    } catch (err: any) {
+      if (err.code === 11000) {
+        // Race: another request already created this order — return it
+        const dup = await Order.findOne({ paymentIntentId: data.paymentIntentId })
+        if (dup) return NextResponse.json(dup)
+      }
+      throw err
+    }
+
+    // ── 7. Confirmation email (fire-and-forget) ────────────────────────────
     const customer = await User.findById(session.user.id).select('email name').lean()
     if (customer) {
       const c = customer as any
       sendOrderConfirmation(c.email, c.name, {
         orderNumber: order.orderNumber,
-        items: data.items.map((i) => ({ title: i.product, quantity: i.quantity, price: i.price })),
+        items: orderItems.map((i) => ({
+          title: (productMap.get(i.product.toString()) as any)?.title ?? i.product,
+          quantity: i.quantity,
+          price: i.price,
+        })),
         subtotal,
-        shippingCost: data.shippingCost,
+        shippingCost,
         totalAmount,
-        currency: data.currency ?? 'USD',
+        currency,
         shippingAddress: data.shippingAddress,
       }).catch(console.error)
     }
@@ -96,7 +154,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
-    console.error(err)
+    console.error('[orders POST]', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

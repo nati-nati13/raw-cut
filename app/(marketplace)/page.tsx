@@ -1,109 +1,379 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { ProductGrid } from '@/components/product/ProductGrid'
-import { DesignerCard } from '@/components/designer/DesignerCard'
-import { getMockFeaturedProducts, mockDesigners } from '@/lib/mock-data'
+import Image from 'next/image'
+import { getMockFeaturedProducts, mockDesigners, mockProducts } from '@/lib/mock-data'
+
+const MARQUEE_ITEM =
+  'RAW CUT  ·  INDEPENDENT DESIGNERS  ·  TBILISI  ·  HANDMADE  ·  UNCUT TALENT  ·  SLOW FASHION  ·  '
+const MARQUEE_COPY = MARQUEE_ITEM.repeat(6)
 
 export default function HomePage() {
-  const products = getMockFeaturedProducts()
+  const featured = getMockFeaturedProducts()
   const designers = mockDesigners.slice(0, 6)
+  const heroProducts = mockProducts.slice(0, 6)
 
   return (
     <div>
-      {/* Hero */}
-      <section className="bg-black text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-36">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-4">
-              Curated Marketplace
-            </p>
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6">
-              Uncut Talent.
-              <br />
-              Curated Style.
-            </h1>
-            <p className="text-lg text-gray-300 mb-8 max-w-md">
-              Discover and buy directly from independent fashion and product designers around the
-              world.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                size="lg"
-                variant="outline"
-                className="bg-transparent text-white border-white hover:bg-white hover:text-black"
-                asChild
+      {/* ── HERO ── */}
+      <section
+        style={{ backgroundColor: 'var(--rc-linen)' }}
+        className="overflow-hidden"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 min-h-[88vh]">
+
+            {/* Left: Headline */}
+            <div className="flex flex-col justify-center py-24 lg:py-16 lg:pr-14">
+              <p
+                className="text-[10px] font-medium tracking-[0.28em] uppercase mb-8"
+                style={{ color: 'var(--rc-dust)' }}
               >
-                <Link href="/products">Shop now</Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="ghost"
-                className="text-gray-300 hover:text-white"
-                asChild
+                Independent Designers — Curated Marketplace
+              </p>
+              <h1
+                className="leading-[0.86] mb-8"
+                style={{
+                  fontFamily: 'var(--font-fraunces)',
+                  fontSize: 'clamp(3.8rem, 7.5vw, 7rem)',
+                  color: 'var(--rc-ink)',
+                  fontWeight: 700,
+                }}
               >
-                <Link href="/register?role=designer">Sell your work →</Link>
-              </Button>
+                <span className="block">Uncut</span>
+                <span
+                  className="block"
+                  style={{ color: 'var(--rc-chalk)', fontStyle: 'italic' }}
+                >
+                  Talent.
+                </span>
+                <span className="block">Curated</span>
+                <span className="block">Style.</span>
+              </h1>
+              <p
+                className="text-sm leading-relaxed mb-10 max-w-[300px]"
+                style={{ color: 'var(--rc-dust)' }}
+              >
+                Buy directly from independent fashion and product designers. Every piece is
+                handmade, limited, and ships from the maker.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/products"
+                  className="inline-flex items-center justify-center px-7 py-3.5 text-[11px] font-semibold tracking-[0.15em] uppercase text-white transition-opacity hover:opacity-75"
+                  style={{ backgroundColor: 'var(--rc-ink)' }}
+                >
+                  Shop now
+                </Link>
+                <Link
+                  href="/register?role=designer"
+                  className="inline-flex items-center justify-center px-7 py-3.5 text-[11px] font-semibold tracking-[0.15em] uppercase border transition-colors hover:bg-black/5"
+                  style={{ borderColor: 'var(--rc-ink)', color: 'var(--rc-ink)' }}
+                >
+                  Sell your work →
+                </Link>
+              </div>
             </div>
+
+            {/* Right: Product mosaic */}
+            <div
+              className="hidden lg:grid grid-cols-2 gap-1.5 py-6 overflow-hidden"
+              style={{ marginRight: '-2rem' }}
+            >
+              {heroProducts.map((product) => (
+                <Link
+                  key={product._id}
+                  href={`/products/${product.slug}`}
+                  className="relative aspect-square overflow-hidden group block"
+                >
+                  {product.images[0] ? (
+                    <Image
+                      src={product.images[0]}
+                      alt={product.title}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      sizes="25vw"
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center text-3xl"
+                      style={{ backgroundColor: '#e8e4dc' }}
+                    >
+                      ✂
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold">Featured</h2>
-          <Link href="/products" className="text-sm text-gray-500 hover:text-black">
-            View all →
-          </Link>
+      {/* ── MARQUEE STRIP ── */}
+      <div
+        className="py-3.5 overflow-hidden select-none"
+        style={{ backgroundColor: 'var(--rc-ink)' }}
+      >
+        <div className="rc-marquee-track">
+          <span
+            className="text-[10px] font-medium tracking-[0.28em] uppercase shrink-0"
+            style={{ color: 'var(--rc-chalk)' }}
+          >
+            {MARQUEE_COPY}
+          </span>
+          <span
+            aria-hidden
+            className="text-[10px] font-medium tracking-[0.28em] uppercase shrink-0"
+            style={{ color: 'var(--rc-chalk)' }}
+          >
+            {MARQUEE_COPY}
+          </span>
         </div>
-        <ProductGrid products={products} />
-      </section>
+      </div>
 
-      {/* Featured Designers */}
-      <section className="bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">Designers</h2>
-            <Link href="/designers" className="text-sm text-gray-500 hover:text-black">
-              View all →
+      {/* ── FEATURED WORK ── */}
+      <section style={{ backgroundColor: 'var(--rc-paper)' }} className="py-20 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-baseline justify-between mb-12">
+            <h2
+              style={{
+                fontFamily: 'var(--font-fraunces)',
+                fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
+                color: 'var(--rc-ink)',
+                fontWeight: 600,
+              }}
+            >
+              Featured Work
+            </h2>
+            <Link
+              href="/products"
+              className="text-[10px] font-medium tracking-[0.2em] uppercase hover:underline"
+              style={{ color: 'var(--rc-dust)' }}
+            >
+              All products →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {designers.map((designer) => (
-              <DesignerCard key={designer._id} designer={designer} />
+
+          {/* Editorial grid: 1 large + smaller items */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {featured[0] && (
+              <Link
+                href={`/products/${featured[0].slug}`}
+                className="group col-span-2 row-span-2 block"
+              >
+                <div className="relative overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                  {featured[0].images[0] && (
+                    <Image
+                      src={featured[0].images[0]}
+                      alt={featured[0].title}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      sizes="50vw"
+                    />
+                  )}
+                </div>
+                <div className="mt-3">
+                  <p
+                    className="text-[10px] uppercase tracking-widest mb-0.5"
+                    style={{ color: 'var(--rc-dust)' }}
+                  >
+                    {featured[0].designer.storeName ?? featured[0].designer.name}
+                  </p>
+                  <p
+                    className="text-sm font-medium leading-snug"
+                    style={{ color: 'var(--rc-ink)' }}
+                  >
+                    {featured[0].title}
+                  </p>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--rc-dust)' }}>
+                    {featured[0].currency} {featured[0].price}
+                  </p>
+                </div>
+              </Link>
+            )}
+
+            {featured.slice(1, 5).map((product) => (
+              <Link
+                key={product._id}
+                href={`/products/${product.slug}`}
+                className="group block"
+              >
+                <div className="relative aspect-square overflow-hidden">
+                  {product.images[0] && (
+                    <Image
+                      src={product.images[0]}
+                      alt={product.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="25vw"
+                    />
+                  )}
+                </div>
+                <div className="mt-2">
+                  <p
+                    className="text-[10px] uppercase tracking-widest mb-0.5"
+                    style={{ color: 'var(--rc-dust)' }}
+                  >
+                    {product.designer.storeName ?? product.designer.name}
+                  </p>
+                  <p
+                    className="text-xs font-medium leading-snug line-clamp-1"
+                    style={{ color: 'var(--rc-ink)' }}
+                  >
+                    {product.title}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--rc-dust)' }}>
+                    {product.currency} {product.price}
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Stats strip */}
-      <section className="border-y">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-3 gap-8 text-center">
+      {/* ── THE MAKERS ── */}
+      <section style={{ backgroundColor: 'var(--rc-ink)' }} className="py-20 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-baseline justify-between mb-12">
+            <h2
+              style={{
+                fontFamily: 'var(--font-fraunces)',
+                fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
+                color: 'var(--rc-linen)',
+                fontWeight: 600,
+                fontStyle: 'italic',
+              }}
+            >
+              The Makers.
+            </h2>
+            <Link
+              href="/designers"
+              className="text-[10px] font-medium tracking-[0.2em] uppercase hover:underline"
+              style={{ color: 'var(--rc-chalk)' }}
+            >
+              All designers →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-6 md:gap-8">
+            {designers.map((designer) => (
+              <Link
+                key={designer._id}
+                href={`/designers/${designer.username}`}
+                className="group flex flex-col items-center text-center gap-3"
+              >
+                <div className="relative h-16 w-16 rounded-full overflow-hidden ring-1 ring-white/10 group-hover:ring-2 group-hover:ring-[#d4a853] group-hover:ring-offset-2 group-hover:ring-offset-[#1a1614] transition-all duration-300">
+                  {designer.avatar ? (
+                    <Image
+                      src={designer.avatar}
+                      alt={designer.storeName ?? designer.name}
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center text-sm font-semibold"
+                      style={{ backgroundColor: '#2e2825', color: 'var(--rc-linen)' }}
+                    >
+                      {(designer.storeName ?? designer.name).slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p
+                    className="text-sm font-medium transition-colors group-hover:text-[#d4a853]"
+                    style={{ color: 'var(--rc-linen)' }}
+                  >
+                    {designer.storeName ?? designer.name}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--rc-dust)' }}>
+                    @{designer.username}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section
+        style={{ backgroundColor: 'var(--rc-linen)', borderBottom: '1px solid rgba(26,22,20,0.12)' }}
+        className="py-20 sm:py-24"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-16">
             {[
-              { value: '6', label: 'Designers' },
-              { value: '12', label: 'Products' },
-              { value: 'Global', label: 'Shipping' },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="text-2xl md:text-3xl font-bold">{stat.value}</p>
-                <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
+              {
+                step: 'Find.',
+                copy: 'Browse work from independent designers across clothing, jewellery, objects, and digital prints.',
+              },
+              {
+                step: 'Buy.',
+                copy: 'Secure checkout. We handle payment — designers focus on making, not logistics.',
+              },
+              {
+                step: 'Receive.',
+                copy: 'Ships directly from the maker. Worldwide delivery. Real people, real craft.',
+              },
+            ].map(({ step, copy }) => (
+              <div key={step}>
+                <p
+                  className="mb-4"
+                  style={{
+                    fontFamily: 'var(--font-fraunces)',
+                    fontSize: '2rem',
+                    color: 'var(--rc-ink)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {step}
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--rc-dust)' }}>
+                  {copy}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA for designers */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-        <h2 className="text-3xl font-bold mb-4">Are you a designer?</h2>
-        <p className="text-gray-500 mb-8 max-w-md mx-auto">
-          Apply to sell on RAW CUT. Reach customers worldwide. We handle payments — you handle
-          shipping.
-        </p>
-        <Button size="lg" asChild>
-          <Link href="/register?role=designer">Apply now</Link>
-        </Button>
+      {/* ── DESIGNER CTA ── */}
+      <section style={{ backgroundColor: 'var(--rc-paper)' }} className="py-28 sm:py-36 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p
+            className="text-[10px] font-medium tracking-[0.28em] uppercase mb-8"
+            style={{ color: 'var(--rc-dust)' }}
+          >
+            For designers
+          </p>
+          <h2
+            className="leading-[0.9] mb-8"
+            style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontSize: 'clamp(3rem, 8vw, 6rem)',
+              color: 'var(--rc-ink)',
+              fontWeight: 700,
+            }}
+          >
+            Sell your work.
+          </h2>
+          <p
+            className="text-sm leading-relaxed mb-12 max-w-sm mx-auto"
+            style={{ color: 'var(--rc-dust)' }}
+          >
+            Apply to sell on RAW CUT. We handle payments. You handle shipping. Customers
+            worldwide.
+          </p>
+          <Link
+            href="/register?role=designer"
+            className="inline-flex items-center gap-2 px-10 py-4 text-[11px] font-semibold tracking-[0.18em] uppercase transition-opacity hover:opacity-75"
+            style={{ backgroundColor: 'var(--rc-ink)', color: 'var(--rc-linen)' }}
+          >
+            Apply now
+          </Link>
+        </div>
       </section>
     </div>
   )

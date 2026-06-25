@@ -18,7 +18,6 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 
-// Guard: loadStripe throws if key is undefined — only call in browser with real key.
 const stripePromise =
   typeof window !== 'undefined' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
     ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -30,21 +29,21 @@ const COUNTRY_CODES: Record<string, string> = {
   'Armenia': 'AM', 'Azerbaijan': 'AZ', 'Italy': 'IT', 'Spain': 'ES',
 }
 
+// Only what the order route and 3DS recovery actually need
 interface PendingOrder {
-  items: ReturnType<typeof useCart>['items']
+  items: { productId: string; quantity: number; variant?: { size?: string; color?: string } }[]
   address: { name: string; email: string; street: string; city: string; postalCode: string; country: string }
-  rate: IShippingRate
-  paymentIntentId: string
+  rate: { carrier: string; cost: number }
 }
 
 // ─── Payment step (mounted inside <Elements>) ──────────────────────────────
 function PaymentStep({
   pending,
-  total,
+  serverTotal,
   onSuccess,
 }: {
   pending: PendingOrder
-  total: number
+  serverTotal: number
   onSuccess: (orderId: string) => void
 }) {
   const stripe = useStripe()
@@ -56,7 +55,7 @@ function PaymentStep({
     if (!stripe || !elements) return
     setLoading(true)
 
-    // Save pending order in sessionStorage for redirect-based 3DS recovery
+    // Persist pending order for 3DS redirect recovery
     sessionStorage.setItem('rc_pending_order', JSON.stringify(pending))
 
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -76,7 +75,13 @@ function PaymentStep({
       return
     }
 
-    // Payment succeeded without redirect — create order
+    // processing = async method (SEPA/iDEAL) — webhook will create the order
+    if (paymentIntent?.status === 'processing') {
+      router.push('/orders/success?status=processing')
+      return
+    }
+
+    // Non-redirect success — create order immediately
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -84,11 +89,8 @@ function PaymentStep({
         body: JSON.stringify({
           items: pending.items.map((i) => ({
             product: i.productId,
-            designer: i.designerId,
             quantity: i.quantity,
-            price: i.price,
             variant: i.variant,
-            type: i.type,
           })),
           shippingAddress: {
             street: pending.address.street,
@@ -96,11 +98,10 @@ function PaymentStep({
             country: pending.address.country,
             postalCode: pending.address.postalCode,
           },
-          shippingCarrier: pending.rate.carrier,
-          shippingCost: pending.rate.cost,
           paymentIntentId: paymentIntent!.id,
         }),
       })
+      if (!res.ok) throw new Error(await res.text())
       const order = await res.json()
       sessionStorage.removeItem('rc_pending_order')
       onSuccess(order.orderNumber ?? order._id)
@@ -123,7 +124,7 @@ function PaymentStep({
         />
       </div>
       <Button type="submit" className="w-full" size="lg" disabled={loading || !stripe}>
-        {loading ? 'Processing…' : `Pay $${total.toFixed(2)}`}
+        {loading ? 'Processing…' : `Pay $${serverTotal.toFixed(2)}`}
       </Button>
       <p className="text-xs text-center text-gray-400">Payments secured by Stripe</p>
     </form>
@@ -137,12 +138,15 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'address' | 'payment'>('address')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingOrder | null>(null)
+  const [serverTotal, setServerTotal] = useState<number>(0)
   const [selectedRate, setSelectedRate] = useState<IShippingRate | null>(null)
   const [country, setCountry] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const countryCode = COUNTRY_CODES[country] ?? (country.length >= 2 ? country.toUpperCase().slice(0, 2) : '')
-  const total = subtotal + (selectedRate?.cost ?? 0)
+
+  // Estimated total for display on address step (server confirms actual)
+  const estimatedTotal = subtotal + (selectedRate?.cost ?? 0)
 
   useEffect(() => {
     if (items.length === 0 && step === 'address') router.push('/cart')
@@ -169,12 +173,29 @@ export default function CheckoutPage() {
       const res = await fetch('/api/payments/create-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtotal, shippingCost: selectedRate.cost }),
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            variant: i.variant,
+          })),
+          countryCode,
+          carrier: selectedRate.carrier,
+        }),
       })
+
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Payment setup failed')
       if (!data.clientSecret) throw new Error('Payment setup failed')
 
-      setPending({ items, address, rate: selectedRate, paymentIntentId: data.paymentIntentId })
+      const pendingOrder: PendingOrder = {
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, variant: i.variant })),
+        address,
+        rate: { carrier: selectedRate.carrier, cost: data.serverShippingCost },
+      }
+
+      setPending(pendingOrder)
+      setServerTotal(data.serverTotal)
       setClientSecret(data.clientSecret)
       setStep('payment')
     } catch (err: any) {
@@ -189,7 +210,6 @@ export default function CheckoutPage() {
     router.push(`/orders/success?order=${encodeURIComponent(orderNumber)}`)
   }
 
-  // Order summary sidebar (shared between steps)
   const orderSummary = (
     <div className="border rounded-lg p-5 space-y-4 sticky top-24">
       <h2 className="font-semibold">Order summary</h2>
@@ -210,13 +230,26 @@ export default function CheckoutPage() {
       </div>
       <div className="flex justify-between text-sm">
         <span>Shipping {selectedRate ? `(${selectedRate.carrier})` : ''}</span>
-        <span>{selectedRate ? `$${selectedRate.cost.toFixed(2)}` : '—'}</span>
+        <span>
+          {step === 'payment' && serverTotal > 0
+            ? `$${(serverTotal - subtotal).toFixed(2)}`
+            : selectedRate
+            ? `$${selectedRate.cost.toFixed(2)}`
+            : '—'}
+        </span>
       </div>
       <Separator />
       <div className="flex justify-between font-semibold">
         <span>Total</span>
-        <span>${total.toFixed(2)}</span>
+        <span>
+          ${step === 'payment' && serverTotal > 0
+            ? serverTotal.toFixed(2)
+            : estimatedTotal.toFixed(2)}
+        </span>
       </div>
+      {step === 'address' && selectedRate && (
+        <p className="text-xs text-gray-400">Final total confirmed when you continue to payment</p>
+      )}
     </div>
   )
 
@@ -224,7 +257,6 @@ export default function CheckoutPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-2xl font-bold mb-8">Checkout</h1>
 
-      {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 text-sm">
         <span className={step === 'address' ? 'font-semibold' : 'text-gray-400'}>1. Delivery</span>
         <span className="text-gray-300">›</span>
@@ -232,7 +264,6 @@ export default function CheckoutPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left */}
         <div>
           {step === 'address' ? (
             <form onSubmit={handleAddressSubmit} className="space-y-8">
@@ -298,11 +329,15 @@ export default function CheckoutPage() {
           ) : (
             pending && clientSecret && (
               <div className="space-y-4">
-                {/* Delivery summary */}
                 <div className="border rounded-lg p-4 text-sm space-y-1 bg-gray-50">
                   <p className="font-medium">{pending.address.name}</p>
-                  <p className="text-gray-500">{pending.address.street}, {pending.address.city} {pending.address.postalCode}, {pending.address.country}</p>
-                  <p className="text-gray-500">{pending.rate.carrier} — ${pending.rate.cost.toFixed(2)}</p>
+                  <p className="text-gray-500">
+                    {pending.address.street}, {pending.address.city}{' '}
+                    {pending.address.postalCode}, {pending.address.country}
+                  </p>
+                  <p className="text-gray-500">
+                    {pending.rate.carrier} — ${pending.rate.cost.toFixed(2)}
+                  </p>
                   <button
                     type="button"
                     onClick={() => setStep('address')}
@@ -317,7 +352,7 @@ export default function CheckoutPage() {
                 >
                   <PaymentStep
                     pending={pending}
-                    total={total}
+                    serverTotal={serverTotal}
                     onSuccess={handlePaymentSuccess}
                   />
                 </Elements>
@@ -326,7 +361,6 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* Right — order summary */}
         <div>{orderSummary}</div>
       </div>
     </div>

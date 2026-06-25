@@ -19,8 +19,13 @@ function SuccessContent() {
     const redirectStatus = searchParams.get('redirect_status')
 
     if (order) {
-      // Direct success (no 3DS redirect)
       setOrderNumber(order)
+      setLoading(false)
+      return
+    }
+
+    if (searchParams.get('status') === 'processing') {
+      setError('Your payment is being processed. You will receive a confirmation email once it clears.')
       setLoading(false)
       return
     }
@@ -42,11 +47,8 @@ function SuccessContent() {
         body: JSON.stringify({
           items: pending.items.map((i: any) => ({
             product: i.productId,
-            designer: i.designerId,
             quantity: i.quantity,
-            price: i.price,
             variant: i.variant,
-            type: i.type,
           })),
           shippingAddress: {
             street: pending.address.street,
@@ -54,8 +56,6 @@ function SuccessContent() {
             country: pending.address.country,
             postalCode: pending.address.postalCode,
           },
-          shippingCarrier: pending.rate.carrier,
-          shippingCost: pending.rate.cost,
           paymentIntentId: paymentIntent,
         }),
       })

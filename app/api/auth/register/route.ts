@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
 import { sendWelcomeEmail } from '@/lib/email'
+import { checkAuthRateLimit } from '@/lib/ratelimit'
 
 const RegisterSchema = z.object({
   name: z.string().min(2),
@@ -15,13 +16,16 @@ const RegisterSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const limited = await checkAuthRateLimit(req)
+  if (limited) return limited
+
   try {
     const body = await req.json()
     const data = RegisterSchema.parse(body)
 
     await connectDB()
 
-    const existing = await User.findOne({ email: data.email })
+    const existing = await User.findOne({ email: data.email.toLowerCase() })
     if (existing) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
     }
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const hashed = await bcrypt.hash(data.password, 12)
+    const hashed = await bcrypt.hash(data.password, 10)
 
     const user = await User.create({
       name: data.name,

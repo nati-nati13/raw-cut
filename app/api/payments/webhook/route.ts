@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { connectDB } from '@/lib/db'
 import Order from '@/models/Order'
+import ProcessedWebhookEvent from '@/models/ProcessedWebhookEvent'
 
 // Next.js App Router reads the raw body correctly with req.text() — no special
 // bodyParser config needed (that's a Pages Router concern).
@@ -30,6 +31,17 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB()
+
+    // Idempotency: if Stripe retries the same event, skip reprocessing.
+    // insertOne throws code 11000 on duplicate — catch and return 200 immediately.
+    try {
+      await ProcessedWebhookEvent.create({ stripeEventId: event.id })
+    } catch (err: any) {
+      if (err.code === 11000) {
+        return NextResponse.json({ received: true, duplicate: true })
+      }
+      throw err
+    }
 
     switch (event.type) {
       case 'payment_intent.succeeded': {

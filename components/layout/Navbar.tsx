@@ -27,7 +27,13 @@ export function Navbar() {
   ]
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <header
+      className="sticky top-0 z-50 w-full border-b backdrop-blur"
+      style={{
+        backgroundColor: 'rgba(244, 240, 232, 0.95)',
+        borderColor: 'rgba(26, 22, 20, 0.12)',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -39,7 +45,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-gray-600 hover:text-black transition-colors"
+                className="text-sm font-medium text-[#7d7068] hover:text-[#1a1614] transition-colors"
               >
                 {link.label}
               </Link>

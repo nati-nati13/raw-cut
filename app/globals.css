@@ -128,3 +128,30 @@
     @apply font-sans;
   }
 }
+
+/* ── RAW CUT Design Tokens ── */
+:root {
+  --rc-ink: #1a1614;
+  --rc-linen: #f4f0e8;
+  --rc-chalk: #d4a853;
+  --rc-dust: #7d7068;
+  --rc-paper: #fafaf7;
+}
+
+/* ── Marquee animation ── */
+@keyframes rc-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.rc-marquee-track {
+  display: flex;
+  white-space: nowrap;
+  animation: rc-marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-marquee-track {
+    animation: none;
+  }
+}
