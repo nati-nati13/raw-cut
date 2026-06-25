@@ -1,380 +1,612 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getMockFeaturedProducts, mockDesigners, mockProducts } from '@/lib/mock-data'
 
-const MARQUEE_ITEM =
-  'RAW CUT  ·  INDEPENDENT DESIGNERS  ·  TBILISI  ·  HANDMADE  ·  UNCUT TALENT  ·  SLOW FASHION  ·  '
-const MARQUEE_COPY = MARQUEE_ITEM.repeat(6)
+const SLIDE_COUNT = 6
+const MARQUEE_ITEM = 'RAW CUT  ·  INDEPENDENT DESIGNERS  ·  TBILISI  ·  HANDMADE  ·  UNCUT TALENT  ·  SLOW FASHION  ·  '
+const MARQUEE_TEXT = MARQUEE_ITEM.repeat(6)
+const NAV_H = 64
 
 export default function HomePage() {
   const featured = getMockFeaturedProducts()
   const designers = mockDesigners.slice(0, 6)
-  const heroProducts = mockProducts.slice(0, 6)
+  const heroProducts = mockProducts.slice(0, 3)
+
+  const [active, setActive] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const slideRefs = useRef<(HTMLDivElement | null)[]>(Array(SLIDE_COUNT).fill(null))
+
+  // Lock body scroll while on this page
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  // Animate slides on enter + track active
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = slideRefs.current.indexOf(entry.target as HTMLDivElement)
+            if (idx !== -1) setActive(idx)
+            entry.target
+              .querySelectorAll<HTMLElement>('.rc-anim, .rc-anim-img')
+              .forEach(el => el.classList.add('in'))
+          }
+        }
+      },
+      { root: container, threshold: 0.4 }
+    )
+
+    slideRefs.current.forEach(el => el && observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+
+  const goTo = (i: number) =>
+    slideRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })
+
+  const SLIDE_H = `calc(100vh - ${NAV_H}px)`
 
   return (
-    <div>
-      {/* ── HERO ── */}
-      <section
-        style={{ backgroundColor: 'var(--rc-linen)' }}
-        className="overflow-hidden"
+    <>
+      {/* ── Navigation dots ── */}
+      <nav
+        aria-label="Slide navigation"
+        style={{
+          position: 'fixed', right: '28px', top: '50%',
+          transform: 'translateY(-50%)', zIndex: 100,
+          display: 'flex', flexDirection: 'column', gap: '10px',
+          mixBlendMode: 'difference',
+        }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 min-h-[88vh]">
+        {Array.from({ length: SLIDE_COUNT }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            aria-label={`Slide ${i + 1}`}
+            style={{
+              width: '6px',
+              height: active === i ? '28px' : '6px',
+              borderRadius: '3px',
+              background: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'height 0.35s cubic-bezier(0.16,1,0.3,1)',
+            }}
+          />
+        ))}
+      </nav>
 
-            {/* Left: Headline */}
-            <div className="flex flex-col justify-center py-24 lg:py-16 lg:pr-14">
-              <p
-                className="text-[10px] font-medium tracking-[0.28em] uppercase mb-8"
-                style={{ color: 'var(--rc-dust)' }}
-              >
-                Independent Designers — Curated Marketplace
-              </p>
-              <h1
-                className="leading-[0.86] mb-8"
-                style={{
-                  fontFamily: 'var(--font-fraunces)',
-                  fontSize: 'clamp(3.8rem, 7.5vw, 7rem)',
-                  color: 'var(--rc-ink)',
-                  fontWeight: 700,
-                }}
-              >
-                <span className="block">Uncut</span>
-                <span
-                  className="block"
-                  style={{ color: 'var(--rc-chalk)', fontStyle: 'italic' }}
-                >
-                  Talent.
-                </span>
-                <span className="block">Curated</span>
-                <span className="block">Style.</span>
-              </h1>
-              <p
-                className="text-sm leading-relaxed mb-10 max-w-[300px]"
-                style={{ color: 'var(--rc-dust)' }}
-              >
-                Buy directly from independent fashion and product designers. Every piece is
-                handmade, limited, and ships from the maker.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/products"
-                  className="inline-flex items-center justify-center px-7 py-3.5 text-[11px] font-semibold tracking-[0.15em] uppercase text-white transition-opacity hover:opacity-75"
-                  style={{ backgroundColor: 'var(--rc-ink)' }}
-                >
-                  Shop now
-                </Link>
-                <Link
-                  href="/register?role=designer"
-                  className="inline-flex items-center justify-center px-7 py-3.5 text-[11px] font-semibold tracking-[0.15em] uppercase border transition-colors hover:bg-black/5"
-                  style={{ borderColor: 'var(--rc-ink)', color: 'var(--rc-ink)' }}
-                >
-                  Sell your work →
-                </Link>
-              </div>
+      {/* ── Scroll container ── */}
+      <div
+        ref={containerRef}
+        className="rc-no-scrollbar"
+        style={{
+          position: 'fixed',
+          top: `${NAV_H}px`,
+          left: 0, right: 0, bottom: 0,
+          overflowY: 'scroll',
+          scrollSnapType: 'y mandatory',
+        }}
+      >
+
+        {/* ══════════════════════════════════════════
+            SLIDE 1 — HERO
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[0] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: 'var(--rc-ink)',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          {/* Copy */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            padding: '56px 48px 56px 80px',
+          }}>
+            <span className="rc-anim" style={{
+              display: 'block',
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.22em',
+              textTransform: 'uppercase', color: 'var(--rc-chalk)', marginBottom: '28px',
+            }}>
+              Tbilisi · Independent Designers
+            </span>
+
+            <h1 className="rc-anim" data-d="1" style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontSize: 'clamp(3.5rem, 5.5vw, 6rem)',
+              fontWeight: 700, color: '#fff',
+              lineHeight: 0.88, letterSpacing: '-0.04em', marginBottom: '28px',
+            }}>
+              Uncut<br />talent,<br />
+              <em style={{ color: 'var(--rc-chalk)', fontStyle: 'italic' }}>curated<br />style.</em>
+            </h1>
+
+            <p className="rc-anim" data-d="2" style={{
+              fontSize: '14px', lineHeight: 1.75,
+              color: 'rgba(255,255,255,0.45)', maxWidth: '360px', marginBottom: '36px',
+            }}>
+              Buy directly from independent fashion and product designers.
+              Every piece is handmade, limited, and ships from the maker.
+            </p>
+
+            <div className="rc-anim" data-d="3" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Link href="/products" style={{
+                display: 'inline-flex', alignItems: 'center',
+                padding: '14px 28px',
+                backgroundColor: 'var(--rc-chalk)', color: 'var(--rc-ink)',
+                borderRadius: '100px', fontSize: '12px', fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
+              }}>
+                Shop Collection
+              </Link>
+              <Link href="/designers" style={{
+                display: 'inline-flex', alignItems: 'center',
+                padding: '14px 28px',
+                backgroundColor: 'transparent', color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '100px', fontSize: '12px', fontWeight: 600,
+                letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
+              }}>
+                Meet Designers
+              </Link>
             </div>
 
-            {/* Right: Product mosaic */}
-            <div
-              className="hidden lg:grid grid-cols-2 gap-1.5 py-6 overflow-hidden"
-              style={{ marginRight: '-2rem' }}
-            >
-              {heroProducts.map((product) => (
-                <Link
-                  key={product._id}
-                  href={`/products/${product.slug}`}
-                  className="relative aspect-square overflow-hidden group block"
-                >
-                  {product.images[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.title}
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="25vw"
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-0 flex items-center justify-center text-3xl"
-                      style={{ backgroundColor: '#e8e4dc' }}
-                    >
-                      ✂
-                    </div>
-                  )}
-                </Link>
+            {/* Stats */}
+            <div className="rc-anim" data-d="4" style={{
+              display: 'flex', gap: '32px', marginTop: '44px', paddingTop: '28px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              {[['250+', 'Designers'], ['2,000+', 'Pieces'], ['40+', 'Countries']].map(([v, l]) => (
+                <div key={l}>
+                  <p style={{
+                    fontFamily: 'var(--font-fraunces)',
+                    fontSize: '1.75rem', fontWeight: 700, color: '#fff',
+                    lineHeight: 1, letterSpacing: '-0.04em',
+                  }}>{v}</p>
+                  <p style={{
+                    fontSize: '10px', color: 'rgba(255,255,255,0.32)',
+                    marginTop: '4px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                  }}>{l}</p>
+                </div>
               ))}
             </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* ── MARQUEE STRIP ── */}
-      <div
-        className="py-3.5 overflow-hidden select-none"
-        style={{ backgroundColor: 'var(--rc-ink)' }}
-      >
-        <div className="rc-marquee-track">
-          <span
-            className="text-[10px] font-medium tracking-[0.28em] uppercase shrink-0"
-            style={{ color: 'var(--rc-chalk)' }}
-          >
-            {MARQUEE_COPY}
-          </span>
-          <span
-            aria-hidden
-            className="text-[10px] font-medium tracking-[0.28em] uppercase shrink-0"
-            style={{ color: 'var(--rc-chalk)' }}
-          >
-            {MARQUEE_COPY}
-          </span>
-        </div>
-      </div>
-
-      {/* ── FEATURED WORK ── */}
-      <section style={{ backgroundColor: 'var(--rc-paper)' }} className="py-20 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-baseline justify-between mb-12">
-            <h2
-              style={{
-                fontFamily: 'var(--font-fraunces)',
-                fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
-                color: 'var(--rc-ink)',
-                fontWeight: 600,
-              }}
-            >
-              Featured Work
-            </h2>
-            <Link
-              href="/products"
-              className="text-[10px] font-medium tracking-[0.2em] uppercase hover:underline"
-              style={{ color: 'var(--rc-dust)' }}
-            >
-              All products →
-            </Link>
           </div>
 
-          {/* Editorial grid: 1 large + smaller items */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {featured[0] && (
-              <Link
-                href={`/products/${featured[0].slug}`}
-                className="group col-span-2 row-span-2 block"
-              >
-                <div className="relative overflow-hidden" style={{ aspectRatio: '3/4' }}>
-                  {featured[0].images[0] && (
-                    <Image
-                      src={featured[0].images[0]}
-                      alt={featured[0].title}
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="50vw"
-                    />
-                  )}
-                </div>
-                <div className="mt-3">
-                  <p
-                    className="text-[10px] uppercase tracking-widest mb-0.5"
-                    style={{ color: 'var(--rc-dust)' }}
-                  >
-                    {featured[0].designer.storeName ?? featured[0].designer.name}
-                  </p>
-                  <p
-                    className="text-sm font-medium leading-snug"
-                    style={{ color: 'var(--rc-ink)' }}
-                  >
-                    {featured[0].title}
-                  </p>
-                  <p className="text-sm mt-0.5" style={{ color: 'var(--rc-dust)' }}>
-                    {featured[0].currency} {featured[0].price}
-                  </p>
-                </div>
-              </Link>
-            )}
-
-            {featured.slice(1, 5).map((product) => (
-              <Link
-                key={product._id}
-                href={`/products/${product.slug}`}
-                className="group block"
-              >
-                <div className="relative aspect-square overflow-hidden">
-                  {product.images[0] && (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="25vw"
-                    />
-                  )}
-                </div>
-                <div className="mt-2">
-                  <p
-                    className="text-[10px] uppercase tracking-widest mb-0.5"
-                    style={{ color: 'var(--rc-dust)' }}
-                  >
-                    {product.designer.storeName ?? product.designer.name}
-                  </p>
-                  <p
-                    className="text-xs font-medium leading-snug line-clamp-1"
-                    style={{ color: 'var(--rc-ink)' }}
-                  >
-                    {product.title}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--rc-dust)' }}>
-                    {product.currency} {product.price}
-                  </p>
-                </div>
-              </Link>
+          {/* Product images — vertical strip */}
+          <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr 1fr', gap: '3px', overflow: 'hidden' }}>
+            {heroProducts.map((p, i) => (
+              <div key={p._id} className="rc-anim-img" data-d={String(i + 1)} style={{ position: 'relative', overflow: 'hidden' }}>
+                {p.images[0]
+                  ? <Image src={p.images[0]} alt={p.title} fill className="object-cover" sizes="50vw" />
+                  : <div style={{ position: 'absolute', inset: 0, backgroundColor: i % 2 === 0 ? '#2e2a28' : '#231f1d' }} />
+                }
+              </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ── THE MAKERS ── */}
-      <section style={{ backgroundColor: 'var(--rc-ink)' }} className="py-20 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-baseline justify-between mb-12">
-            <h2
-              style={{
-                fontFamily: 'var(--font-fraunces)',
-                fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
-                color: 'var(--rc-linen)',
-                fontWeight: 600,
-                fontStyle: 'italic',
-              }}
-            >
-              The Makers.
+          {/* Scroll hint */}
+          <div style={{
+            position: 'absolute', bottom: '28px', left: '80px',
+            display: 'flex', alignItems: 'center', gap: '12px',
+          }}>
+            <div style={{ width: '1px', height: '40px', backgroundColor: 'var(--rc-chalk)', opacity: 0.35 }} />
+            <span style={{
+              fontSize: '9px', letterSpacing: '0.24em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.22)',
+            }}>Scroll</span>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            SLIDE 2 — STATS
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[1] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: 'var(--rc-linen)',
+            display: 'flex', flexDirection: 'column',
+            justifyContent: 'center', alignItems: 'center',
+            overflow: 'hidden', position: 'relative', padding: '60px',
+          }}
+        >
+          {/* Marquee top bar */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            backgroundColor: 'var(--rc-ink)', overflow: 'hidden', padding: '14px 0',
+          }}>
+            <div className="rc-marquee-track">
+              <span style={{
+                fontSize: '9px', fontWeight: 600, letterSpacing: '0.28em',
+                textTransform: 'uppercase', color: 'var(--rc-chalk)',
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}>{MARQUEE_TEXT}</span>
+              <span aria-hidden style={{
+                fontSize: '9px', fontWeight: 600, letterSpacing: '0.28em',
+                textTransform: 'uppercase', color: 'var(--rc-chalk)',
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}>{MARQUEE_TEXT}</span>
+            </div>
+          </div>
+
+          <div className="rc-anim" style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <p style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.28em',
+              textTransform: 'uppercase', color: 'var(--rc-dust)', marginBottom: '20px',
+            }}>A new kind of marketplace</p>
+            <h2 style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontSize: 'clamp(2.5rem, 5vw, 4.5rem)',
+              fontWeight: 700, color: 'var(--rc-ink)',
+              lineHeight: 0.9, letterSpacing: '-0.04em',
+            }}>
+              Where craft meets{' '}
+              <em style={{ color: 'var(--rc-chalk)', fontStyle: 'italic' }}>commerce.</em>
             </h2>
-            <Link
-              href="/designers"
-              className="text-[10px] font-medium tracking-[0.2em] uppercase hover:underline"
-              style={{ color: 'var(--rc-chalk)' }}
-            >
-              All designers →
-            </Link>
           </div>
 
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-6 md:gap-8">
-            {designers.map((designer) => (
-              <Link
-                key={designer._id}
-                href={`/designers/${designer.username}`}
-                className="group flex flex-col items-center text-center gap-3"
-              >
-                <div className="relative h-16 w-16 rounded-full overflow-hidden ring-1 ring-white/10 group-hover:ring-2 group-hover:ring-[#d4a853] group-hover:ring-offset-2 group-hover:ring-offset-[#1a1614] transition-all duration-300">
-                  {designer.avatar ? (
-                    <Image
-                      src={designer.avatar}
-                      alt={designer.storeName ?? designer.name}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center text-sm font-semibold"
-                      style={{ backgroundColor: '#2e2825', color: 'var(--rc-linen)' }}
-                    >
-                      {(designer.storeName ?? designer.name).slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p
-                    className="text-sm font-medium transition-colors group-hover:text-[#d4a853]"
-                    style={{ color: 'var(--rc-linen)' }}
-                  >
-                    {designer.storeName ?? designer.name}
-                  </p>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--rc-dust)' }}>
-                    @{designer.username}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section
-        style={{ backgroundColor: 'var(--rc-linen)', borderBottom: '1px solid rgba(26,22,20,0.12)' }}
-        className="py-20 sm:py-24"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-16">
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            width: '100%', maxWidth: '880px',
+          }}>
             {[
-              {
-                step: 'Find.',
-                copy: 'Browse work from independent designers across clothing, jewellery, objects, and digital prints.',
-              },
-              {
-                step: 'Buy.',
-                copy: 'Secure checkout. We handle payment — designers focus on making, not logistics.',
-              },
-              {
-                step: 'Receive.',
-                copy: 'Ships directly from the maker. Worldwide delivery. Real people, real craft.',
-              },
-            ].map(({ step, copy }) => (
-              <div key={step}>
-                <p
-                  className="mb-4"
-                  style={{
-                    fontFamily: 'var(--font-fraunces)',
-                    fontSize: '2rem',
-                    color: 'var(--rc-ink)',
-                    fontWeight: 600,
-                  }}
-                >
-                  {step}
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--rc-dust)' }}>
-                  {copy}
-                </p>
+              { n: '250+', l: 'Independent\nDesigners', s: 'and growing' },
+              { n: '2,000+', l: 'Unique\nPieces', s: 'handmade & limited' },
+              { n: '40+', l: 'Countries\nReached', s: 'worldwide delivery' },
+            ].map(({ n, l, s }, i) => (
+              <div key={i} className="rc-anim" data-d={String(i + 1)} style={{
+                padding: '44px 32px', textAlign: 'center',
+                borderLeft: i > 0 ? '1px solid rgba(26,22,20,0.1)' : 'none',
+              }}>
+                <p style={{
+                  fontFamily: 'var(--font-fraunces)',
+                  fontSize: 'clamp(3.5rem, 6vw, 7rem)',
+                  fontWeight: 700, color: 'var(--rc-ink)',
+                  lineHeight: 1, letterSpacing: '-0.05em', marginBottom: '10px',
+                }}>{n}</p>
+                <p style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.15em',
+                  textTransform: 'uppercase', color: 'var(--rc-dust)',
+                  whiteSpace: 'pre-line', marginBottom: '4px',
+                }}>{l}</p>
+                <p style={{ fontSize: '11px', color: 'var(--rc-chalk)' }}>{s}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* ── DESIGNER CTA ── */}
-      <section style={{ backgroundColor: 'var(--rc-paper)' }} className="py-28 sm:py-36 text-center">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p
-            className="text-[10px] font-medium tracking-[0.28em] uppercase mb-8"
-            style={{ color: 'var(--rc-dust)' }}
-          >
-            For designers
-          </p>
-          <h2
-            className="leading-[0.9] mb-8"
-            style={{
+        {/* ══════════════════════════════════════════
+            SLIDE 3 — HOW IT WORKS
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[2] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: 'var(--rc-paper)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            padding: '56px 80px', overflow: 'hidden', position: 'relative',
+          }}
+        >
+          <div className="rc-anim" style={{ marginBottom: '44px' }}>
+            <p style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.28em',
+              textTransform: 'uppercase', color: 'var(--rc-dust)', marginBottom: '14px',
+            }}>How it works</p>
+            <h2 style={{
               fontFamily: 'var(--font-fraunces)',
-              fontSize: 'clamp(3rem, 8vw, 6rem)',
-              color: 'var(--rc-ink)',
-              fontWeight: 700,
-            }}
-          >
-            Sell your work.
-          </h2>
-          <p
-            className="text-sm leading-relaxed mb-12 max-w-sm mx-auto"
-            style={{ color: 'var(--rc-dust)' }}
-          >
-            Apply to sell on RAW CUT. We handle payments. You handle shipping. Customers
-            worldwide.
-          </p>
-          <Link
-            href="/register?role=designer"
-            className="inline-flex items-center gap-2 px-10 py-4 text-[11px] font-semibold tracking-[0.18em] uppercase transition-opacity hover:opacity-75"
-            style={{ backgroundColor: 'var(--rc-ink)', color: 'var(--rc-linen)' }}
-          >
-            Apply now
-          </Link>
+              fontSize: 'clamp(2.5rem, 4.5vw, 4rem)',
+              fontWeight: 700, color: 'var(--rc-ink)',
+              lineHeight: 0.9, letterSpacing: '-0.04em',
+            }}>
+              Shopping made <em style={{ fontStyle: 'italic' }}>simple.</em>
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            {[
+              { n: '01', t: 'Discover', b: 'Browse handmade clothing, jewellery, objects, and prints from independent makers worldwide.' },
+              { n: '02', t: 'Buy securely', b: 'RAW CUT handles payments — so designers focus on creating, not logistics.' },
+              { n: '03', t: 'Receive from maker', b: 'Every order ships directly from the designer. Worldwide delivery, real craft.' },
+            ].map(({ n, t, b }, i) => (
+              <div key={i} className="rc-anim" data-d={String(i + 1)} style={{
+                paddingTop: '36px', paddingBottom: '36px',
+                paddingRight: i < 2 ? '36px' : 0,
+                paddingLeft: i > 0 ? '36px' : 0,
+                borderLeft: i > 0 ? '1px solid rgba(26,22,20,0.08)' : 'none',
+              }}>
+                <span style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-fraunces)',
+                  fontSize: '5rem', fontWeight: 700,
+                  color: 'var(--rc-chalk)', lineHeight: 1,
+                  letterSpacing: '-0.04em', marginBottom: '20px', opacity: 0.45,
+                }}>{n}</span>
+                <h3 style={{
+                  fontFamily: 'var(--font-fraunces)',
+                  fontSize: '1.4rem', fontWeight: 600,
+                  color: 'var(--rc-ink)', letterSpacing: '-0.025em', marginBottom: '10px',
+                }}>{t}</h3>
+                <p style={{
+                  fontSize: '13px', lineHeight: 1.75,
+                  color: 'var(--rc-dust)', maxWidth: '260px',
+                }}>{b}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rc-anim" data-d="4" style={{
+            display: 'flex', gap: '32px', paddingTop: '28px',
+            borderTop: '1px solid rgba(26,22,20,0.07)', marginTop: '8px',
+          }}>
+            {[['↗', 'Direct from makers'], ['⊕', 'Secure payments'], ['✦', 'Worldwide delivery']].map(([icon, label]) => (
+              <div key={label} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                fontSize: '11px', color: 'var(--rc-dust)', letterSpacing: '0.04em',
+              }}>
+                <span style={{ color: 'var(--rc-chalk)', fontSize: '13px' }}>{icon}</span>
+                {label}
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
-    </div>
+
+        {/* ══════════════════════════════════════════
+            SLIDE 4 — FEATURED WORK
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[3] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: 'var(--rc-ink)',
+            display: 'flex', overflow: 'hidden',
+          }}
+        >
+          {/* Left panel */}
+          <div style={{
+            width: '240px', flexShrink: 0,
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            padding: '52px 32px',
+            borderRight: '1px solid rgba(255,255,255,0.07)',
+          }}>
+            <div>
+              <p className="rc-anim" style={{
+                fontSize: '10px', fontWeight: 600, letterSpacing: '0.28em',
+                textTransform: 'uppercase', color: 'var(--rc-chalk)', marginBottom: '16px',
+              }}>Hand-picked</p>
+              <h2 className="rc-anim" data-d="1" style={{
+                fontFamily: 'var(--font-fraunces)',
+                fontSize: '2.8rem', fontWeight: 700, color: '#fff',
+                lineHeight: 0.9, letterSpacing: '-0.04em',
+              }}>
+                Featured<br /><em style={{ fontStyle: 'italic' }}>Work.</em>
+              </h2>
+            </div>
+            <div className="rc-anim" data-d="2">
+              <Link href="/products" style={{
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+                textTransform: 'uppercase', color: 'var(--rc-chalk)', textDecoration: 'none',
+              }}>
+                View all →
+              </Link>
+            </div>
+          </div>
+
+          {/* Product mosaic */}
+          <div style={{
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr 1fr',
+            gridTemplateRows: '1fr 1fr',
+            gap: '3px',
+          }}>
+            {featured.slice(0, 5).map((p, i) => (
+              <Link
+                key={p._id}
+                href={`/products/${p.slug}`}
+                style={{
+                  position: 'relative', overflow: 'hidden', display: 'block',
+                  gridColumn: i === 0 ? '1' : undefined,
+                  gridRow: i === 0 ? '1 / span 2' : undefined,
+                  textDecoration: 'none',
+                }}
+              >
+                <div className="rc-anim-img" data-d={String(i)} style={{ position: 'absolute', inset: 0 }}>
+                  {p.images[0]
+                    ? <Image src={p.images[0]} alt={p.title} fill className="object-cover" sizes="25vw" />
+                    : <div style={{ position: 'absolute', inset: 0, backgroundColor: i % 2 === 0 ? '#2e2a28' : '#231f1d' }} />
+                  }
+                </div>
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  padding: '20px 14px 12px',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.68))',
+                }}>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.52)', marginBottom: '2px' }}>
+                    {p.designer.storeName ?? p.designer.name}
+                  </p>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>{p.title}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            SLIDE 5 — THE MAKERS
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[4] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: 'var(--rc-linen)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            padding: '56px 80px', overflow: 'hidden',
+          }}
+        >
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+            marginBottom: '40px',
+          }}>
+            <div>
+              <p className="rc-anim" style={{
+                fontSize: '10px', fontWeight: 600, letterSpacing: '0.28em',
+                textTransform: 'uppercase', color: 'var(--rc-dust)', marginBottom: '14px',
+              }}>The community</p>
+              <h2 className="rc-anim" data-d="1" style={{
+                fontFamily: 'var(--font-fraunces)',
+                fontSize: 'clamp(2.5rem, 4.5vw, 3.5rem)',
+                fontWeight: 700, color: 'var(--rc-ink)',
+                lineHeight: 0.9, letterSpacing: '-0.04em',
+              }}>
+                Meet the <em style={{ fontStyle: 'italic' }}>makers.</em>
+              </h2>
+            </div>
+            <div className="rc-anim" data-d="2">
+              <Link href="/designers" style={{
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+                textTransform: 'uppercase', color: 'var(--rc-ink)', textDecoration: 'none',
+              }}>
+                All designers →
+              </Link>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '18px' }}>
+            {designers.map((d, i) => (
+              <Link
+                key={d._id}
+                href={`/designers/${d.username}`}
+                className="rc-anim"
+                data-d={String(Math.min(i + 2, 6))}
+                style={{ display: 'block', textDecoration: 'none' }}
+              >
+                <div style={{
+                  position: 'relative', aspectRatio: '3/4',
+                  overflow: 'hidden', borderRadius: '6px',
+                  marginBottom: '10px', backgroundColor: '#d5cfc5',
+                }}>
+                  {d.avatar
+                    ? <Image src={d.avatar} alt={d.storeName ?? d.name} fill className="object-cover" sizes="17vw" />
+                    : (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <span style={{
+                          fontFamily: 'var(--font-fraunces)',
+                          fontSize: '1.25rem', fontWeight: 700, color: 'var(--rc-dust)',
+                        }}>
+                          {(d.storeName ?? d.name).slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )
+                  }
+                </div>
+                <p style={{
+                  fontSize: '11px', fontWeight: 600, color: 'var(--rc-ink)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{d.storeName ?? d.name}</p>
+                <p style={{ fontSize: '10px', color: 'var(--rc-dust)', marginTop: '2px' }}>
+                  @{d.username}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            SLIDE 6 — DESIGNER CTA
+        ══════════════════════════════════════════ */}
+        <div
+          ref={el => { slideRefs.current[5] = el }}
+          style={{
+            height: SLIDE_H,
+            scrollSnapAlign: 'start',
+            backgroundColor: '#0d0b0a',
+            display: 'flex', flexDirection: 'column',
+            justifyContent: 'center', alignItems: 'center',
+            textAlign: 'center', overflow: 'hidden',
+            position: 'relative', padding: '60px',
+          }}
+        >
+          {/* Radial glow */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(212,168,83,0.07) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+
+          <p className="rc-anim" style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.28em',
+            textTransform: 'uppercase', color: 'var(--rc-chalk)', marginBottom: '28px',
+          }}>For designers</p>
+
+          <h2 className="rc-anim" data-d="1" style={{
+            fontFamily: 'var(--font-fraunces)',
+            fontSize: 'clamp(3rem, 7vw, 5.5rem)',
+            fontWeight: 700, color: '#fff',
+            lineHeight: 0.88, letterSpacing: '-0.04em',
+            maxWidth: '660px', marginBottom: '28px',
+          }}>
+            Start selling your<br />
+            <em style={{ color: 'var(--rc-chalk)', fontStyle: 'italic' }}>work today.</em>
+          </h2>
+
+          <p className="rc-anim" data-d="2" style={{
+            fontSize: '14px', lineHeight: 1.75,
+            color: 'rgba(255,255,255,0.38)', maxWidth: '360px', marginBottom: '44px',
+          }}>
+            Apply to sell on RAW CUT. We handle payments. You focus on making.
+            Customers worldwide.
+          </p>
+
+          <div className="rc-anim" data-d="3" style={{ display: 'flex', gap: '12px' }}>
+            <Link href="/register?role=designer" style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '15px 36px',
+              backgroundColor: 'var(--rc-chalk)', color: 'var(--rc-ink)',
+              borderRadius: '100px', fontSize: '12px', fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
+            }}>Apply now</Link>
+            <Link href="/designers" style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '15px 36px',
+              backgroundColor: 'transparent', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '100px', fontSize: '12px', fontWeight: 600,
+              letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
+            }}>See community</Link>
+          </div>
+
+          <p className="rc-anim" data-d="5" style={{
+            position: 'absolute', bottom: '28px',
+            fontSize: '10px', letterSpacing: '0.25em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.11)',
+          }}>
+            © 2024 RAW CUT — Tbilisi, Georgia
+          </p>
+        </div>
+
+      </div>
+    </>
   )
 }
