@@ -26,9 +26,11 @@ function notifyListeners() {
 
 export function useCart() {
   const [items, setItems] = useState<CartItem[]>([])
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     setItems(loadCart())
+    setHydrated(true)
     const handler = () => setItems(loadCart())
     listeners.add(handler)
     return () => { listeners.delete(handler) }
@@ -81,5 +83,5 @@ export function useCart() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const totalWeight = items.reduce((sum, i) => sum + (i.weight ?? 0) * i.quantity, 0)
 
-  return { items, addItem, removeItem, updateQuantity, clearCart, subtotal, totalWeight }
+  return { items, hydrated, addItem, removeItem, updateQuantity, clearCart, subtotal, totalWeight }
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useCart } from '@/hooks/useCart'
 import { ShippingSelector } from '@/components/checkout/ShippingSelector'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ function PaymentStep({
 }) {
   const stripe = useStripe()
   const elements = useElements()
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   async function handlePay(e: React.FormEvent) {
@@ -133,8 +135,9 @@ function PaymentStep({
 
 // ─── Main checkout page ────────────────────────────────────────────────────
 export default function CheckoutPage() {
-  const { items, subtotal, totalWeight, clearCart } = useCart()
+  const { items, hydrated, subtotal, totalWeight, clearCart } = useCart()
   const router = useRouter()
+  const { status: authStatus } = useSession()
   const [step, setStep] = useState<'address' | 'payment'>('address')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingOrder | null>(null)
@@ -149,10 +152,17 @@ export default function CheckoutPage() {
   const estimatedTotal = subtotal + (selectedRate?.cost ?? 0)
 
   useEffect(() => {
-    if (items.length === 0 && step === 'address') router.push('/cart')
-  }, [items.length, step, router])
+    if (authStatus === 'unauthenticated') {
+      router.push('/login?callbackUrl=%2Fcheckout')
+    }
+  }, [authStatus, router])
 
-  if (items.length === 0 && step === 'address') return null
+  useEffect(() => {
+    if (hydrated && items.length === 0 && step === 'address') router.push('/cart')
+  }, [hydrated, items.length, step, router])
+
+  if (authStatus === 'loading' || authStatus === 'unauthenticated') return null
+  if (!hydrated || (items.length === 0 && step === 'address')) return null
 
   async function handleAddressSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

@@ -8,7 +8,9 @@ import { useCart } from '@/hooks/useCart'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, subtotal } = useCart()
+  const { items, hydrated, removeItem, updateQuantity, subtotal } = useCart()
+
+  if (!hydrated) return null
 
   if (items.length === 0) {
     return (

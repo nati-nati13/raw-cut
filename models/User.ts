@@ -15,6 +15,7 @@ export interface IUser extends Document {
   socialLinks?: { instagram?: string; website?: string }
   commissionRate: number
   stripeAccountId?: string
+  stripeCustomerId?: string
   // Customer
   addresses: IAddress[]
   wishlist: mongoose.Types.ObjectId[]
@@ -56,6 +57,7 @@ const UserSchema = new Schema<IUser>(
     },
     commissionRate: { type: Number, default: 15 },
     stripeAccountId: String,
+    stripeCustomerId: String,
     // Customer fields
     addresses: [AddressSchema],
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
